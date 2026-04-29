@@ -9,7 +9,7 @@ import CountyResultsTable from "@/components/CountyResultsTable";
 import ElectionMap from "@/components/ElectionMap";
 import type { Race, CountyResult, Choice } from "@/lib/types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = "";
 
 interface ElectionSummary {
   election_key: string;

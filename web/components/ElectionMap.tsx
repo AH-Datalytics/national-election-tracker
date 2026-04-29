@@ -12,7 +12,7 @@ import type { FeatureCollection, Geometry } from "geojson";
 /*  Supports drill-down: click county → show precinct boundaries.     */
 /* ------------------------------------------------------------------ */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = "";
 
 interface ElectionMapProps {
   state: string;

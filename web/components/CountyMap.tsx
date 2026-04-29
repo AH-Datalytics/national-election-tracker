@@ -6,7 +6,7 @@ import * as topojson from "topojson-client";
 import type { CountyResult, Choice } from "@/lib/types";
 import { partyColor, formatNumber } from "@/lib/utils";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = "";
 
 interface CountyMapProps {
   state: string;

@@ -6,7 +6,7 @@ import * as d3 from "d3";
 import * as topojson from "topojson-client";
 import { STATE_NAMES } from "@/lib/constants";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = "";
 
 const ACTIVE_FILL = "#1e3a5f";
 const ACTIVE_HOVER = "#2563eb";
