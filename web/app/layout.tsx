@@ -10,23 +10,26 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="min-h-screen flex flex-col">
-        <header className="border-b border-gray-200">
-          <div className="max-w-6xl mx-auto px-4 py-3 flex items-baseline justify-between">
-            <Link href="/" className="text-lg font-bold tracking-tight" style={{ fontFamily: "var(--font-serif)", color: "var(--color-primary)" }}>
+      <body className="min-h-screen flex flex-col" style={{ background: "var(--color-background)" }}>
+        <header style={{ borderBottom: "1px solid var(--color-border)" }}>
+          <div style={{ maxWidth: 1200, margin: "0 auto", padding: "12px 16px", display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+            <Link href="/" style={{ fontFamily: "var(--font-serif)", fontSize: "1.125rem", fontWeight: 700, color: "var(--color-foreground)", textDecoration: "none" }}>
               National Election Tracker
             </Link>
-            <nav className="flex gap-6 text-sm">
-              <Link href="/" className="hover:text-[var(--color-accent)]">Home</Link>
-              <Link href="/la" className="hover:text-[var(--color-accent)]">Louisiana</Link>
-              <Link href="/in" className="hover:text-[var(--color-accent)]">Indiana</Link>
-              <Link href="/oh" className="hover:text-[var(--color-accent)]">Ohio</Link>
+            <nav style={{ display: "flex", gap: 24, fontSize: "0.875rem" }}>
+              <Link href="/" style={{ color: "var(--color-foreground)", textDecoration: "none" }}>Home</Link>
+              <Link href="/la" style={{ color: "var(--color-foreground)", textDecoration: "none" }}>Louisiana</Link>
+              <Link href="/in" style={{ color: "var(--color-foreground)", textDecoration: "none" }}>Indiana</Link>
+              <Link href="/oh" style={{ color: "var(--color-foreground)", textDecoration: "none" }}>Ohio</Link>
             </nav>
           </div>
         </header>
         <main className="flex-1">{children}</main>
-        <footer className="border-t border-gray-200 py-4 text-center text-xs text-[var(--color-muted)]">
-          Built by <a href="https://ahdatalytics.com" className="hover:text-[var(--color-accent)]">AH Datalytics</a>
+        <footer style={{ borderTop: "1px solid var(--color-border)", padding: "16px 0", textAlign: "center", fontSize: "0.75rem", color: "var(--color-muted)" }}>
+          Powered by{" "}
+          <a href="https://ahdatalytics.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--color-accent)", textDecoration: "none" }}>
+            AH Datalytics
+          </a>
         </footer>
       </body>
     </html>

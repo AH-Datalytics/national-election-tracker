@@ -16,19 +16,82 @@ export default async function StateLayout({
 
   return (
     <div>
-      <div className="border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-4 py-2 flex items-center gap-2 text-sm text-[var(--color-muted)]">
-          <Link href="/" className="hover:text-[var(--color-accent)]">Home</Link>
-          <span>/</span>
-          <span className="font-medium text-gray-900">{name}</span>
-        </div>
-        <div className="max-w-6xl mx-auto px-4 pb-2 flex gap-4 text-sm">
-          <Link href={`/${state}`} className="hover:text-[var(--color-accent)]">Overview</Link>
-          <Link href={`/${state}/elections`} className="hover:text-[var(--color-accent)]">Elections</Link>
-          <Link href={`/${state}/live`} className="hover:text-[var(--color-accent)]">Live</Link>
+      {/* Breadcrumb */}
+      <div style={{ borderBottom: "1px solid var(--color-border)" }}>
+        <div
+          style={{
+            maxWidth: 1200,
+            margin: "0 auto",
+            padding: "10px 16px",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: "0.8125rem",
+            color: "var(--color-muted)",
+          }}
+        >
+          <Link
+            href="/"
+            style={{
+              color: "var(--color-muted)",
+              textDecoration: "none",
+              transition: "color 0.15s",
+            }}
+            onMouseEnter={() => {}}
+          >
+            Home
+          </Link>
+          <span style={{ color: "#ccc" }}>/</span>
+          <span
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontWeight: 600,
+              color: "var(--color-foreground)",
+            }}
+          >
+            {name}
+          </span>
         </div>
       </div>
+
+      {/* Sub-navigation tabs */}
+      <div style={{ borderBottom: "1px solid var(--color-border)" }}>
+        <nav
+          style={{
+            maxWidth: 1200,
+            margin: "0 auto",
+            padding: "0 16px",
+            display: "flex",
+            gap: 0,
+          }}
+        >
+          <StateNavLink href={`/${state}`} label="Overview" />
+          <StateNavLink href={`/${state}/elections`} label="Elections" />
+          <StateNavLink href={`/${state}/live`} label="Live" />
+        </nav>
+      </div>
+
       {children}
     </div>
+  );
+}
+
+function StateNavLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      style={{
+        padding: "10px 16px",
+        fontSize: "0.875rem",
+        fontWeight: 500,
+        color: "var(--color-foreground)",
+        textDecoration: "none",
+        borderBottom: "2px solid transparent",
+        transition: "border-color 0.15s, color 0.15s",
+        marginBottom: -1,
+      }}
+    >
+      {label}
+    </Link>
   );
 }

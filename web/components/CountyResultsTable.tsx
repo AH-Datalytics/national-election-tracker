@@ -1,55 +1,233 @@
-import type { CountyResult, Choice } from "@/lib/types";
-import { formatNumber } from "@/lib/utils";
+import { formatNumber, partyColor } from "@/lib/utils";
 
-interface Props {
-  countyResults: CountyResult[];
-  choices: Choice[];
+/* ------------------------------------------------------------------ */
+/*  CountyResultsTable – parish/county breakdown table                 */
+/*  Matches the LA tracker style: serif section header, party-colored  */
+/*  column headers, alternating rows, winner bolded, tabular-nums.     */
+/* ------------------------------------------------------------------ */
+
+interface CountyResultsTableProps {
+  counties: Array<{
+    county_code: string;
+    county_name: string;
+    choices: Array<{
+      choice_key: string;
+      name: string;
+      party: string | null;
+      votes: number;
+    }>;
+    precincts_reporting: number | null;
+    precincts_total: number | null;
+  }>;
+  countyLabel?: string;
 }
 
-export default function CountyResultsTable({ countyResults, choices }: Props) {
-  // Show top 4 choices in table columns
-  const topChoices = [...choices].sort((a, b) => b.vote_total - a.vote_total).slice(0, 4);
+export default function CountyResultsTable({
+  counties,
+  countyLabel = "County",
+}: CountyResultsTableProps) {
+  if (counties.length === 0) return null;
+
+  /* Determine top 3 candidates across all counties by total votes. */
+  const candidateTotals = new Map<
+    string,
+    { choice_key: string; name: string; party: string | null; totalVotes: number }
+  >();
+
+  for (const county of counties) {
+    for (const c of county.choices) {
+      const existing = candidateTotals.get(c.choice_key);
+      if (existing) {
+        existing.totalVotes += c.votes;
+      } else {
+        candidateTotals.set(c.choice_key, {
+          choice_key: c.choice_key,
+          name: c.name,
+          party: c.party,
+          totalVotes: c.votes,
+        });
+      }
+    }
+  }
+
+  const topCandidates = Array.from(candidateTotals.values())
+    .sort((a, b) => b.totalVotes - a.totalVotes)
+    .slice(0, 3);
+
+  /* Sort counties alphabetically. */
+  const sortedCounties = [...counties].sort((a, b) =>
+    a.county_name.localeCompare(b.county_name),
+  );
+
+  /* Find per-county winner (most votes) to bold the row. */
+  function getCountyWinnerKey(
+    choices: Array<{ choice_key: string; votes: number }>,
+  ): string | null {
+    if (choices.length === 0) return null;
+    const sorted = [...choices].sort((a, b) => b.votes - a.votes);
+    return sorted[0].choice_key;
+  }
+
+  /* Extract last name for column header display. */
+  function lastName(fullName: string): string {
+    const parts = fullName.trim().split(" ");
+    return parts[parts.length - 1];
+  }
+
+  /* -- Styles -- */
+  const headerStyle: React.CSSProperties = {
+    fontFamily: "var(--font-serif)",
+    fontSize: "1.125rem",
+    fontWeight: 600,
+    paddingBottom: 8,
+    borderBottom: "2px solid #1a1a1a",
+    marginBottom: 16,
+  };
+
+  const thStyle: React.CSSProperties = {
+    padding: "8px 10px",
+    fontWeight: 600,
+    fontSize: "0.8125rem",
+    borderBottom: "2px solid #e5e5e5",
+    whiteSpace: "nowrap",
+  };
+
+  const tdStyle: React.CSSProperties = {
+    padding: "6px 10px",
+    fontSize: "0.8125rem",
+    borderBottom: "1px solid #f0f0f0",
+  };
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-gray-200 text-left">
-            <th className="py-2 pr-4 font-semibold">County</th>
-            {topChoices.map((c) => (
-              <th key={c.choice_key} className="py-2 px-2 font-semibold text-right">
-                {c.name.split(" ").pop()}
+    <div>
+      <h3 style={headerStyle}>{countyLabel} Breakdown</h3>
+      <div style={{ overflowX: "auto" }}>
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            fontSize: "0.8125rem",
+          }}
+        >
+          <thead>
+            <tr>
+              <th style={{ ...thStyle, textAlign: "left" }}>{countyLabel}</th>
+              {topCandidates.map((c) => (
+                <th
+                  key={c.choice_key}
+                  style={{
+                    ...thStyle,
+                    textAlign: "right",
+                    color: partyColor(c.party),
+                  }}
+                >
+                  {lastName(c.name)}
+                </th>
+              ))}
+              <th style={{ ...thStyle, textAlign: "right" }}>Total</th>
+              <th
+                style={{
+                  ...thStyle,
+                  textAlign: "center",
+                  width: 20,
+                  padding: "8px 6px",
+                }}
+              >
+                {/* Winner indicator column — no header text */}
               </th>
-            ))}
-            <th className="py-2 pl-2 font-semibold text-right">Reporting</th>
-          </tr>
-        </thead>
-        <tbody>
-          {countyResults
-            .sort((a, b) => a.county_name.localeCompare(b.county_name))
-            .map((cr) => {
-              const choiceMap = new Map(cr.choices.map((c) => [c.choice_key, c]));
+            </tr>
+          </thead>
+          <tbody>
+            {sortedCounties.map((county, idx) => {
+              const choiceMap = new Map(
+                county.choices.map((c) => [c.choice_key, c]),
+              );
+              const winnerKey = getCountyWinnerKey(county.choices);
+              const totalVotes = county.choices.reduce(
+                (sum, c) => sum + c.votes,
+                0,
+              );
+              const isOdd = idx % 2 === 1;
+
+              /* Find the winner's party for the indicator dot. */
+              const winnerChoice = winnerKey ? choiceMap.get(winnerKey) : null;
+              const winnerCandidate = winnerChoice
+                ? topCandidates.find(
+                    (tc) => tc.choice_key === winnerChoice.choice_key,
+                  )
+                : null;
+              const winnerParty = winnerCandidate?.party ?? winnerChoice?.party ?? null;
+
               return (
-                <tr key={cr.county_code} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-1.5 pr-4 font-medium">{cr.county_name}</td>
-                  {topChoices.map((c) => {
-                    const r = choiceMap.get(c.choice_key);
+                <tr
+                  key={county.county_code}
+                  style={{
+                    backgroundColor: isOdd ? "#f9f9f9" : "#ffffff",
+                  }}
+                >
+                  <td
+                    style={{
+                      ...tdStyle,
+                      fontWeight: 500,
+                      textAlign: "left",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {county.county_name}
+                  </td>
+                  {topCandidates.map((tc) => {
+                    const r = choiceMap.get(tc.choice_key);
+                    const isWinner =
+                      winnerKey !== null && tc.choice_key === winnerKey;
                     return (
-                      <td key={c.choice_key} className="py-1.5 px-2 text-right tabular-nums">
+                      <td
+                        key={tc.choice_key}
+                        style={{
+                          ...tdStyle,
+                          textAlign: "right",
+                          fontVariantNumeric: "tabular-nums",
+                          fontWeight: isWinner ? 700 : 400,
+                        }}
+                      >
                         {r ? formatNumber(r.votes) : "\u2014"}
                       </td>
                     );
                   })}
-                  <td className="py-1.5 pl-2 text-right text-[var(--color-muted)] tabular-nums">
-                    {cr.precincts_reporting != null && cr.precincts_total
-                      ? `${cr.precincts_reporting}/${cr.precincts_total}`
-                      : "\u2014"}
+                  <td
+                    style={{
+                      ...tdStyle,
+                      textAlign: "right",
+                      fontVariantNumeric: "tabular-nums",
+                      color: "var(--color-muted)",
+                    }}
+                  >
+                    {formatNumber(totalVotes)}
+                  </td>
+                  <td
+                    style={{
+                      ...tdStyle,
+                      textAlign: "center",
+                      padding: "6px",
+                    }}
+                  >
+                    {winnerKey && (
+                      <span
+                        style={{
+                          display: "inline-block",
+                          width: 10,
+                          height: 10,
+                          borderRadius: "50%",
+                          backgroundColor: partyColor(winnerParty),
+                        }}
+                      />
+                    )}
                   </td>
                 </tr>
               );
             })}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

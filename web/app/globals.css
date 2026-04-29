@@ -1,29 +1,35 @@
 @import "tailwindcss";
 
 :root {
-  --color-primary: #1e3a5f;
-  --color-accent: #2563eb;
-  --color-muted: #6b7280;
-  --color-border: #e5e7eb;
-  --color-surface: #f9fafb;
-  --foreground: #111;
+  --color-background: #FAFAF8;
+  --color-foreground: #1a1a1a;
+  --color-accent: #C41E3A;
+  --color-muted: #666666;
+  --color-border: #e5e5e5;
+  --color-surface: #ffffff;
+  --color-hero-bg: #002855;
+  --color-rep-red: #E81B23;
+  --color-dem-blue: #0015BC;
   --font-serif: Georgia, "Times New Roman", serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 body {
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
   color: var(--foreground);
-  background: #fff;
+  background: var(--color-background);
 }
 
-/* Serif headings — editorial style */
-h1,
-h2,
-h3 {
+h1, h2, h3 { font-family: var(--font-serif); }
+
+.tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* Section headers matching LA tracker */
+.section-header {
   font-family: var(--font-serif);
-}
-
-/* Tabular numbers for data display */
-.tabular-nums {
-  font-variant-numeric: tabular-nums;
+  font-size: 1.125rem;
+  font-weight: 600;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #1a1a1a;
+  margin-bottom: 1rem;
 }
