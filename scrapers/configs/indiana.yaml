@@ -4,6 +4,14 @@ base_url: https://enr.indianavoters.in.gov
 archive_url_template: "https://enr.indianavoters.in.gov/archive/{slug}/download"
 user_agent: NationalElectionTracker/1.0
 
+# Live polling — the active election URL goes live on election day.
+# Check https://enr.indianavoters.in.gov/ on May 5 to discover the exact slug.
+# Likely patterns: 2026Primary, 2026Municipal
+live_url_template: "https://enr.indianavoters.in.gov/archive/{slug}/download"
+# Set this to the active slug when it appears (e.g. "2026Primary")
+live_slug: null
+poll_interval_seconds: 60
+
 scraping:
   max_workers: 3
   initial_workers: 1
