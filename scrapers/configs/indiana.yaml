@@ -1,0 +1,45 @@
+state: IN
+name: Indiana
+base_url: https://enr.indianavoters.in.gov
+archive_url_template: "https://enr.indianavoters.in.gov/archive/{slug}/download"
+user_agent: NationalElectionTracker/1.0
+
+scraping:
+  max_workers: 3
+  initial_workers: 1
+  delay_seconds: 2.0
+  batch_size: 3
+  batch_pause_seconds: 10
+  ramp_after_successes: 5
+
+archives:
+  - slug: 2024General
+    date: "2024-11-05"
+    type: general
+  - slug: 2024Primary
+    date: "2024-05-07"
+    type: primary
+  - slug: 2023General
+    date: "2023-11-07"
+    type: general
+  - slug: 2023Primary
+    date: "2023-05-02"
+    type: primary
+  - slug: 2022General
+    date: "2022-11-08"
+    type: general
+  - slug: 2022Primary
+    date: "2022-05-03"
+    type: primary
+  - slug: 2020General
+    date: "2020-11-03"
+    type: general
+  - slug: 2020Primary
+    date: "2020-06-02"
+    type: primary
+  - slug: 2019General
+    date: "2019-11-05"
+    type: general
+  - slug: 2019Primary
+    date: "2019-05-07"
+    type: primary
