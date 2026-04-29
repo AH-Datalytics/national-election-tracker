@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import * as topojson from "topojson-client";
@@ -8,8 +8,8 @@ import type { Topology } from "topojson-specification";
 import type { FeatureCollection, Geometry } from "geojson";
 
 /* ------------------------------------------------------------------ */
-/*  ElectionMap – MapLibre GL county choropleth for election results   */
-/*  Dark background, party-colored fill, hover tooltip, click zoom.    */
+/*  ElectionMap – MapLibre GL county + precinct choropleth             */
+/*  Supports drill-down: click county → show precinct boundaries.     */
 /* ------------------------------------------------------------------ */
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -20,12 +20,21 @@ interface ElectionMapProps {
     string,
     { leader: string; party: string; margin: number }
   >;
+  precinctData?: Record<
+    string,
+    { leader: string; party: string; margin: number }
+  >;
+  selectedCounty?: string | null;
   height?: number;
   onCountyClick?: (countyCode: string, countyName: string) => void;
+  onBackToState?: () => void;
 }
 
 /** Approximate center coordinates and zoom level per state. */
-const STATE_CENTERS: Record<string, { center: [number, number]; zoom: number }> = {
+const STATE_CENTERS: Record<
+  string,
+  { center: [number, number]; zoom: number }
+> = {
   LA: { center: [-91.8, 30.95], zoom: 6.3 },
   IN: { center: [-86.15, 39.77], zoom: 6.5 },
   OH: { center: [-82.7, 40.4], zoom: 6.5 },
@@ -58,7 +67,6 @@ function marginColor(party: string, margin: number): string {
   const t = Math.min(margin / 80, 1); // 0 at 0%, 1 at 80%+
 
   if (party === "Democrat" || party === "Democratic" || party === "DEM") {
-    // Light blue → dark blue
     const r = Math.round(200 - 180 * t);
     const g = Math.round(210 - 170 * t);
     const b = Math.round(255 - 67 * t);
@@ -66,7 +74,6 @@ function marginColor(party: string, margin: number): string {
   }
 
   if (party === "Republican" || party === "REP") {
-    // Light red → dark red
     const r = Math.round(255 - 23 * t);
     const g = Math.round(200 - 170 * t);
     const b = Math.round(200 - 170 * t);
@@ -76,42 +83,135 @@ function marginColor(party: string, margin: number): string {
   return "#cccccc";
 }
 
+/** Build a MapLibre match expression from a data record. */
+function buildFillColor(
+  data: Record<string, { leader: string; party: string; margin: number }> | undefined,
+  keyProp: string,
+): unknown {
+  if (!data || Object.keys(data).length === 0) return "#cccccc";
+  const expr: unknown[] = ["match", ["get", keyProp]];
+  for (const [code, info] of Object.entries(data)) {
+    expr.push(code, marginColor(info.party, info.margin));
+  }
+  expr.push("#cccccc");
+  return expr;
+}
+
 export default function ElectionMap({
   state,
   countyData,
+  precinctData,
+  selectedCounty,
   height = 500,
   onCountyClick,
+  onBackToState,
 }: ElectionMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const tooltipRef = useRef<maplibregl.Popup | null>(null);
+  const [precinctLoading, setPrecinctLoading] = useState(false);
+  const [hasPrecinctLayer, setHasPrecinctLayer] = useState(false);
 
-  /** Stable callback ref for county click. */
   const onCountyClickRef = useRef(onCountyClick);
   onCountyClickRef.current = onCountyClick;
+  const onBackToStateRef = useRef(onBackToState);
+  onBackToStateRef.current = onBackToState;
+  const countyDataRef = useRef(countyData);
+  countyDataRef.current = countyData;
+  const precinctDataRef = useRef(precinctData);
+  precinctDataRef.current = precinctData;
 
-  /** Build the fill-color expression from countyData. */
-  const buildFillColor = useCallback(
-    (
-      data: Record<string, { leader: string; party: string; margin: number }> | undefined,
-    ): unknown => {
-      if (!data || Object.keys(data).length === 0) return "#cccccc";
+  /** Remove precinct layers if they exist. */
+  const removePrecinctLayers = useCallback((map: maplibregl.Map) => {
+    for (const id of [
+      "precincts-fill",
+      "precincts-line",
+      "precincts-highlight",
+    ]) {
+      if (map.getLayer(id)) map.removeLayer(id);
+    }
+    if (map.getSource("precincts")) map.removeSource("precincts");
+    setHasPrecinctLayer(false);
+  }, []);
 
-      // Build a MapLibre "match" expression: ["match", ["get", "county_code"], code1, color1, ..., fallback]
-      const expr: unknown[] = ["match", ["get", "county_code"]];
-      for (const [code, info] of Object.entries(data)) {
-        expr.push(code, marginColor(info.party, info.margin));
+  /** Load precinct boundaries for a county and add to map. */
+  const loadPrecincts = useCallback(
+    async (map: maplibregl.Map, countyCode: string) => {
+      setPrecinctLoading(true);
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/maps/${state.toLowerCase()}/precincts/${countyCode}.json`,
+        );
+        if (!res.ok) {
+          setPrecinctLoading(false);
+          return;
+        }
+        const topoData: Topology = await res.json();
+        const objectKey = Object.keys(topoData.objects)[0];
+        const geojson = topojson.feature(
+          topoData,
+          topoData.objects[objectKey],
+        ) as FeatureCollection<Geometry>;
+
+        // Remove existing precinct layers
+        removePrecinctLayers(map);
+
+        // Add precinct source
+        map.addSource("precincts", { type: "geojson", data: geojson });
+
+        // Precinct fill layer
+        const pData = precinctDataRef.current;
+        map.addLayer({
+          id: "precincts-fill",
+          type: "fill",
+          source: "precincts",
+          paint: {
+            "fill-color": buildFillColor(
+              pData,
+              "vtd_code",
+            ) as maplibregl.ExpressionSpecification | string,
+            "fill-opacity": 0.85,
+          },
+        });
+
+        // Precinct border layer
+        map.addLayer({
+          id: "precincts-line",
+          type: "line",
+          source: "precincts",
+          paint: {
+            "line-color": "#ffffff",
+            "line-width": 0.5,
+          },
+        });
+
+        // Precinct hover highlight
+        map.addLayer({
+          id: "precincts-highlight",
+          type: "line",
+          source: "precincts",
+          paint: {
+            "line-color": "#FDD023",
+            "line-width": 2,
+          },
+          filter: ["==", "vtd_code", ""],
+        });
+
+        setHasPrecinctLayer(true);
+      } catch {
+        /* Failed to load — just show counties */
       }
-      expr.push("#cccccc"); // fallback
-      return expr;
+      setPrecinctLoading(false);
     },
-    [],
+    [state, removePrecinctLayers],
   );
 
+  /** Initialize the map with county layers. */
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const { center, zoom } = STATE_CENTERS[state.toUpperCase()] || DEFAULT_CENTER;
+    const { center, zoom } =
+      STATE_CENTERS[state.toUpperCase()] || DEFAULT_CENTER;
 
     const map = new maplibregl.Map({
       container: containerRef.current,
@@ -131,7 +231,6 @@ export default function ElectionMap({
     tooltipRef.current = tooltip;
 
     map.on("load", async () => {
-      /* Fetch TopoJSON and convert to GeoJSON */
       try {
         const res = await fetch(
           `${API_BASE}/api/maps/${state.toLowerCase()}/counties.json`,
@@ -144,24 +243,21 @@ export default function ElectionMap({
           topoData.objects[objectKey],
         ) as FeatureCollection<Geometry>;
 
-        /* Add source */
-        map.addSource("counties", {
-          type: "geojson",
-          data: geojson,
-        });
+        map.addSource("counties", { type: "geojson", data: geojson });
 
-        /* County fill layer */
         map.addLayer({
           id: "counties-fill",
           type: "fill",
           source: "counties",
           paint: {
-            "fill-color": buildFillColor(countyData) as maplibregl.ExpressionSpecification | string,
+            "fill-color": buildFillColor(
+              countyData,
+              "county_code",
+            ) as maplibregl.ExpressionSpecification | string,
             "fill-opacity": 0.85,
           },
         });
 
-        /* County border layer */
         map.addLayer({
           id: "counties-line",
           type: "line",
@@ -172,7 +268,6 @@ export default function ElectionMap({
           },
         });
 
-        /* Hover highlight layer */
         map.addLayer({
           id: "counties-highlight",
           type: "line",
@@ -184,44 +279,33 @@ export default function ElectionMap({
           filter: ["==", "county_code", ""],
         });
 
-        /* Hover events */
+        /* County hover */
         map.on("mousemove", "counties-fill", (e) => {
           if (!e.features || e.features.length === 0) return;
           map.getCanvas().style.cursor = "pointer";
 
-          const feature = e.features[0];
-          const props = feature.properties || {};
+          const props = e.features[0].properties || {};
           const code = props.county_code as string;
           const name = (props.name as string) || code;
 
-          /* Highlight border */
-          map.setFilter("counties-highlight", [
-            "==",
-            "county_code",
-            code,
-          ]);
+          map.setFilter("counties-highlight", ["==", "county_code", code]);
 
-          /* Tooltip content */
           let html = `<strong>${name}</strong>`;
-          if (countyData && countyData[code]) {
-            const info = countyData[code];
+          const cd = countyDataRef.current;
+          if (cd && cd[code]) {
+            const info = cd[code];
             html += `<br/>${info.leader}<br/>Margin: ${info.margin.toFixed(1)}%`;
           }
-
           tooltip.setLngLat(e.lngLat).setHTML(html).addTo(map);
         });
 
         map.on("mouseleave", "counties-fill", () => {
           map.getCanvas().style.cursor = "";
-          map.setFilter("counties-highlight", [
-            "==",
-            "county_code",
-            "",
-          ]);
+          map.setFilter("counties-highlight", ["==", "county_code", ""]);
           tooltip.remove();
         });
 
-        /* Click events */
+        /* County click → drill down to precincts */
         map.on("click", "counties-fill", (e) => {
           if (!e.features || e.features.length === 0) return;
           const feature = e.features[0];
@@ -229,8 +313,11 @@ export default function ElectionMap({
           const code = props.county_code as string;
           const name = (props.name as string) || code;
 
-          /* Fly to fit clicked county */
-          if (feature.geometry.type === "Polygon" || feature.geometry.type === "MultiPolygon") {
+          // Zoom to county bounds
+          if (
+            feature.geometry.type === "Polygon" ||
+            feature.geometry.type === "MultiPolygon"
+          ) {
             const bounds = new maplibregl.LngLatBounds();
             const coords =
               feature.geometry.type === "Polygon"
@@ -242,16 +329,53 @@ export default function ElectionMap({
                 bounds.extend(pt);
               }
             }
-
-            map.fitBounds(bounds, { padding: 40, maxZoom: 10, duration: 800 });
+            map.fitBounds(bounds, {
+              padding: 40,
+              maxZoom: 10,
+              duration: 800,
+            });
           }
 
           if (onCountyClickRef.current) {
             onCountyClickRef.current(code, name);
           }
         });
+
+        /* Precinct hover (added after precinct layer exists) */
+        map.on("mousemove", "precincts-fill", (e) => {
+          if (!e.features || e.features.length === 0) return;
+          map.getCanvas().style.cursor = "pointer";
+
+          const props = e.features[0].properties || {};
+          const vtdCode = props.vtd_code as string;
+          const name = (props.name as string) || vtdCode;
+
+          if (map.getLayer("precincts-highlight")) {
+            map.setFilter("precincts-highlight", [
+              "==",
+              "vtd_code",
+              vtdCode,
+            ]);
+          }
+
+          let html = `<strong>${name}</strong>`;
+          const pd = precinctDataRef.current;
+          if (pd && pd[vtdCode]) {
+            const info = pd[vtdCode];
+            html += `<br/>${info.leader}<br/>Margin: ${info.margin.toFixed(1)}%`;
+          }
+          tooltip.setLngLat(e.lngLat).setHTML(html).addTo(map);
+        });
+
+        map.on("mouseleave", "precincts-fill", () => {
+          map.getCanvas().style.cursor = "";
+          if (map.getLayer("precincts-highlight")) {
+            map.setFilter("precincts-highlight", ["==", "vtd_code", ""]);
+          }
+          tooltip.remove();
+        });
       } catch {
-        /* Silently fail — map just shows empty dark background */
+        /* map shows empty dark background */
       }
     });
 
@@ -260,32 +384,81 @@ export default function ElectionMap({
       map.remove();
       mapRef.current = null;
     };
-    // We only want to re-create the map when state changes.
-    // countyData changes are handled by the second effect below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
-  /* Update fill color when countyData changes without re-creating map. */
+  /* Update county fill color when countyData changes. */
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-
-    const updatePaint = () => {
+    const update = () => {
       if (map.getLayer("counties-fill")) {
         map.setPaintProperty(
           "counties-fill",
           "fill-color",
-          buildFillColor(countyData) as maplibregl.ExpressionSpecification | string,
+          buildFillColor(
+            countyData,
+            "county_code",
+          ) as maplibregl.ExpressionSpecification | string,
         );
       }
     };
+    if (map.isStyleLoaded()) update();
+    else map.once("styledata", update);
+  }, [countyData]);
 
-    if (map.isStyleLoaded()) {
-      updatePaint();
+  /* Load/remove precinct layer when selectedCounty changes. */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const handleLoad = () => {
+      if (selectedCounty) {
+        // Dim county fill when drilling into precincts
+        if (map.getLayer("counties-fill")) {
+          map.setPaintProperty("counties-fill", "fill-opacity", 0.25);
+        }
+        loadPrecincts(map, selectedCounty);
+      } else {
+        // Reset county opacity and remove precinct layers
+        if (map.getLayer("counties-fill")) {
+          map.setPaintProperty("counties-fill", "fill-opacity", 0.85);
+        }
+        removePrecinctLayers(map);
+
+        // Reset to state view
+        const { center, zoom } =
+          STATE_CENTERS[state.toUpperCase()] || DEFAULT_CENTER;
+        map.flyTo({ center, zoom, duration: 800 });
+      }
+    };
+
+    if (map.isStyleLoaded() && map.getSource("counties")) {
+      handleLoad();
     } else {
-      map.once("styledata", updatePaint);
+      map.once("load", handleLoad);
     }
-  }, [countyData, buildFillColor]);
+  }, [selectedCounty, state, loadPrecincts, removePrecinctLayers]);
+
+  /* Update precinct fill color when precinctData changes. */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !hasPrecinctLayer) return;
+    const update = () => {
+      if (map.getLayer("precincts-fill")) {
+        map.setPaintProperty(
+          "precincts-fill",
+          "fill-color",
+          buildFillColor(
+            precinctData,
+            "vtd_code",
+          ) as maplibregl.ExpressionSpecification | string,
+        );
+      }
+    };
+    if (map.isStyleLoaded()) update();
+    else map.once("styledata", update);
+  }, [precinctData, hasPrecinctLayer]);
 
   return (
     <>
@@ -304,15 +477,56 @@ export default function ElectionMap({
           border-top-color: rgba(0, 0, 0, 0.85);
         }
       `}</style>
-      <div
-        ref={containerRef}
-        style={{
-          width: "100%",
-          height,
-          borderRadius: 4,
-          overflow: "hidden",
-        }}
-      />
+      <div style={{ position: "relative" }}>
+        <div
+          ref={containerRef}
+          style={{
+            width: "100%",
+            height,
+            borderRadius: 4,
+            overflow: "hidden",
+          }}
+        />
+
+        {/* Loading overlay for precinct data */}
+        {precinctLoading && (
+          <div
+            style={{
+              position: "absolute",
+              top: 12,
+              left: 12,
+              background: "rgba(0,0,0,0.75)",
+              color: "#fff",
+              padding: "6px 12px",
+              borderRadius: 4,
+              fontSize: "0.8125rem",
+            }}
+          >
+            Loading precincts...
+          </div>
+        )}
+
+        {/* Back button when viewing precincts */}
+        {selectedCounty && !precinctLoading && (
+          <button
+            onClick={() => onBackToStateRef.current?.()}
+            style={{
+              position: "absolute",
+              top: 12,
+              left: 12,
+              background: "rgba(0,0,0,0.75)",
+              color: "#fff",
+              padding: "6px 14px",
+              borderRadius: 4,
+              fontSize: "0.8125rem",
+              border: "1px solid rgba(255,255,255,0.3)",
+              cursor: "pointer",
+            }}
+          >
+            ← Back to state view
+          </button>
+        )}
+      </div>
     </>
   );
 }
