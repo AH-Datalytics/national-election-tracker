@@ -130,14 +130,14 @@ def get_race_counties(state: str, race_key: str):
                 "county_code": cc,
                 "county_name": r["county_name"],
                 "choices": [],
-                "precincts_reporting": 0,
-                "precincts_expected": 0,
+                "precincts_reporting": None,
+                "precincts_total": None,
             }
         counties_map[cc]["choices"].append({
+            "choice_key": r["choice_key"],
             "name": r["choice_name"],
             "party": r["party"],
-            "choice_key": r["choice_key"],
-            "vote_total": r["vote_total"],
+            "votes": r["vote_total"],
         })
 
     # Reporting data per county
@@ -153,7 +153,7 @@ def get_race_counties(state: str, race_key: str):
         cc = rp["county_code"]
         if cc in counties_map:
             counties_map[cc]["precincts_reporting"] = rp["precincts_reporting"]
-            counties_map[cc]["precincts_expected"] = rp["precincts_expected"]
+            counties_map[cc]["precincts_total"] = rp["precincts_expected"]
 
     return list(counties_map.values())
 

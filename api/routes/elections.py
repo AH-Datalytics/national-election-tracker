@@ -136,14 +136,13 @@ def get_election(state: str, election_key: str):
         race_id = c_dict.pop("race_id")
         choices_by_race[race_id].append(c_dict)
 
-    # Group races by office_category
-    races_by_category: dict[str, list[dict]] = defaultdict(list)
+    # Build flat races list with choices
+    races_list = []
     for r in races:
         r_dict = dict(r)
         race_id = r_dict.pop("_race_id")
         r_dict["choices"] = choices_by_race.get(race_id, [])
-        category = r_dict["office_category"]
-        races_by_category[category].append(r_dict)
+        races_list.append(r_dict)
 
     return {
         "election_key": election["election_key"],
@@ -151,6 +150,6 @@ def get_election(state: str, election_key: str):
         "date": election["date"],
         "type": election["type"],
         "is_official": election["is_official"],
-        "race_count": len(races),
-        "races_by_category": dict(races_by_category),
+        "race_count": len(races_list),
+        "races": races_list,
     }
