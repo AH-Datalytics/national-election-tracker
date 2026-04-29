@@ -30,7 +30,7 @@ def us_states_map():
 def county_map(state: str):
     """Serve a state's county TopoJSON file."""
     code = state.upper()
-    path = os.path.join(MAPS_DIR, f"{code.lower()}-counties.json")
+    path = os.path.join(MAPS_DIR, code.lower(), "counties.json")
     if not os.path.isfile(path):
         raise HTTPException(
             status_code=404,
