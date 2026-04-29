@@ -21,7 +21,10 @@ import unicodedata
 # ---------------------------------------------------------------------------
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DEFAULT_DB_PATH = os.path.join(REPO_ROOT, "data", "elections.db")
+DEFAULT_DB_PATH = os.environ.get(
+    "ELECTIONS_DB_PATH",
+    os.path.join(REPO_ROOT, "data", "elections.db"),
+)
 
 
 # ---------------------------------------------------------------------------
