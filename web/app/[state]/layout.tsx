@@ -35,9 +35,7 @@ export default async function StateLayout({
             style={{
               color: "var(--color-muted)",
               textDecoration: "none",
-              transition: "color 0.15s",
             }}
-            onMouseEnter={() => {}}
           >
             Home
           </Link>
