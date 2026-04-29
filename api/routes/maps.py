@@ -9,8 +9,11 @@ from api.db import DB_PATH
 
 router = APIRouter(prefix="/api/maps", tags=["maps"])
 
-# Maps directory sits alongside the DB in data/maps/
-MAPS_DIR = os.path.join(os.path.dirname(DB_PATH), "maps")
+# Maps directory — use MAPS_DIR env var if set, otherwise fall back to data/maps/
+MAPS_DIR = os.environ.get(
+    "MAPS_DIR",
+    os.path.join(os.path.dirname(DB_PATH), "maps"),
+)
 
 
 @router.get("/us-states.json")
