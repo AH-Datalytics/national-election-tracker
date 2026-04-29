@@ -482,8 +482,8 @@ export default function ElectionMap({
           ref={containerRef}
           style={{
             width: "100%",
-            height,
-            borderRadius: 4,
+            height: height ?? "100%",
+            minHeight: height ? undefined : 300,
             overflow: "hidden",
           }}
         />
