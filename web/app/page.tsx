@@ -8,8 +8,8 @@ interface StateInfo {
   name: string;
   election_count: number;
   race_count: number;
-  earliest_date: string | null;
-  latest_date: string | null;
+  earliest: string | null;
+  latest: string | null;
 }
 
 async function fetchStates(): Promise<StateInfo[]> {
@@ -76,7 +76,7 @@ export default async function HomePage() {
       <section id="states" style={{ maxWidth: 1200, margin: "0 auto", padding: "48px 16px" }}>
         <h2 className="section-header">Available States</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
-          {(states.length > 0 ? states : STATES_WITH_DATA.map(code => ({ code, name: STATE_NAMES[code], election_count: 0, race_count: 0, earliest_date: null, latest_date: null }))).map((s: StateInfo) => (
+          {(states.length > 0 ? states : STATES_WITH_DATA.map(code => ({ code, name: STATE_NAMES[code], election_count: 0, race_count: 0, earliest: null, latest: null }))).map((s: StateInfo) => (
             <Link key={s.code} href={`/${s.code.toLowerCase()}`} style={{
               display: "block", padding: 20,
               background: "var(--color-surface)",
@@ -94,9 +94,9 @@ export default async function HomePage() {
                   <>Data loading...</>
                 )}
               </p>
-              {s.earliest_date && s.latest_date && (
+              {s.earliest && s.latest && (
                 <p style={{ fontSize: "0.75rem", color: "var(--color-muted)", marginTop: 4 }}>
-                  {new Date(s.earliest_date + "T00:00:00").getFullYear()} &ndash; {new Date(s.latest_date + "T00:00:00").getFullYear()}
+                  {new Date(s.earliest + "T00:00:00").getFullYear()} &ndash; {new Date(s.latest + "T00:00:00").getFullYear()}
                 </p>
               )}
             </Link>

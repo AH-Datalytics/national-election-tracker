@@ -9,8 +9,8 @@ export interface State {
   county_label: string;
   election_count: number;
   race_count: number;
-  earliest_date: string | null;
-  latest_date: string | null;
+  earliest: string | null;
+  latest: string | null;
 }
 
 export interface County {

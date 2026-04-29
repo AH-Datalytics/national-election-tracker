@@ -71,11 +71,11 @@ export default async function StatePage({
           {formatNumber(stateData.election_count)} elections
           {" \u00B7 "}
           {formatNumber(stateData.race_count)} races
-          {stateData.earliest_date && stateData.latest_date && (
+          {stateData.earliest && stateData.latest && (
             <>
               {" \u00B7 "}
-              {formatDate(stateData.earliest_date)} &ndash;{" "}
-              {formatDate(stateData.latest_date)}
+              {formatDate(stateData.earliest)} &ndash;{" "}
+              {formatDate(stateData.latest)}
             </>
           )}
         </p>
