@@ -1,0 +1,8 @@
+state: OH
+name: Ohio
+live_url: "https://liveresults.ohiosos.gov/Api/v1/download?filename=VSSC1622XmlFileBlob"
+user_agent: NationalElectionTracker/1.0
+
+scraping:
+  poll_interval_seconds: 180  # 3 minutes
+  delay_seconds: 5.0
