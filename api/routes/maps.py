@@ -41,3 +41,22 @@ def county_map(state: str):
         media_type="application/json",
         headers={"Cache-Control": "public, max-age=86400"},
     )
+
+
+@router.get("/{state}/precincts/{county_code}.json")
+def precinct_map(state: str, county_code: str):
+    """Serve precinct boundaries for a specific county."""
+    code = state.upper()
+    path = os.path.join(
+        MAPS_DIR, code.lower(), "precincts", f"{county_code}.json"
+    )
+    if not os.path.isfile(path):
+        raise HTTPException(
+            status_code=404,
+            detail={"error": f"Precinct map not found for {code} county {county_code}"},
+        )
+    return FileResponse(
+        path,
+        media_type="application/json",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
