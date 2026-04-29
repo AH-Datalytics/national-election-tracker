@@ -359,10 +359,11 @@ class OhioLiveScraper(StateScraper):
     # ------------------------------------------------------------------
 
     def _text(self, el, child_name: str, nsmap: dict) -> str | None:
-        """Get text content of a child element, or None."""
+        """Get text content of a child element, or None if missing/empty."""
         child = el.find(_tag(nsmap, child_name), nsmap)
         if child is not None and child.text:
-            return child.text.strip()
+            stripped = child.text.strip()
+            return stripped if stripped else None
         return None
 
     def _attr(self, el, attr_name: str) -> str | None:
@@ -720,8 +721,8 @@ class OhioLiveScraper(StateScraper):
         for selection in contest.iter(selection_tag):
             # Determine Yes/No from the Selection text
             sel_text = self._text(selection, "Selection", nsmap)
-            if sel_text is None:
-                # Try BallotMeasureSelection type detection
+            if not sel_text:
+                # Selection element has a <Text> child rather than direct text
                 text_el = selection.find(_tag(nsmap, "Selection"), nsmap)
                 if text_el is not None:
                     inner = text_el.find(_tag(nsmap, "Text"), nsmap)
