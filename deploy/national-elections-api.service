@@ -1,0 +1,16 @@
+[Unit]
+Description=National Elections Tracker API
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/national-elections/repo
+ExecStart=/opt/national-elections/venv/bin/uvicorn api.main:app --host 0.0.0.0 --port 8200
+Restart=always
+RestartSec=5
+Environment=ELECTIONS_DB_PATH=/opt/national-elections/data/elections.db
+Environment=MAPS_DIR=/opt/national-elections/data/maps
+
+[Install]
+WantedBy=multi-user.target
