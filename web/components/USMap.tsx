@@ -62,34 +62,43 @@ export default function USMap({ stateStats = [] }: USMapProps) {
 
         const sm = statsMap();
 
+        // Determine which states have data using stateStats (not TopoJSON property)
+        const hasData = (d: any): boolean => {
+          const code = d.properties?.code || d.properties?.postal || d.properties?.STUSPS;
+          return !!(code && sm[code] && sm[code].election_count > 0);
+        };
+
+        const getCode = (d: any): string =>
+          d.properties?.code || d.properties?.postal || d.properties?.STUSPS || "";
+
         sel
           .selectAll("path")
           .data(states.features)
           .join("path")
           .attr("d", (d: any) => path(d) || "")
           .attr("fill", (d: any) =>
-            d.properties.has_data ? ACTIVE_FILL : INACTIVE_FILL
+            hasData(d) ? ACTIVE_FILL : INACTIVE_FILL
           )
           .attr("stroke", INACTIVE_STROKE)
           .attr("stroke-width", 0.5)
           .attr("cursor", (d: any) =>
-            d.properties.has_data ? "pointer" : "default"
+            hasData(d) ? "pointer" : "default"
           )
           .on("click", (_: any, d: any) => {
-            if (d.properties.has_data) {
-              router.push(`/${d.properties.code.toLowerCase()}`);
+            if (hasData(d)) {
+              router.push(`/${getCode(d).toLowerCase()}`);
             }
           })
           .on("mouseenter", function (event: any, d: any) {
             const el = d3.select(this as Element);
-            if (d.properties.has_data) {
+            if (hasData(d)) {
               el.attr("fill", ACTIVE_HOVER);
             } else {
               el.attr("fill", "#bfc5cc");
             }
             // Show tooltip
-            const code = d.properties.code;
-            const name = d.properties.name || STATE_NAMES[code] || code;
+            const code = getCode(d);
+            const name = d.properties.name || d.properties.NAME || STATE_NAMES[code] || code;
             const stats = sm[code];
             let html = `<strong>${name}</strong>`;
             if (stats && stats.election_count > 0) {
@@ -100,8 +109,6 @@ export default function USMap({ stateStats = [] }: USMapProps) {
                 const to = new Date(stats.latest + "T00:00:00").getFullYear();
                 html += `<br/>${from}\u2013${to}`;
               }
-            } else if (d.properties.has_data) {
-              html += `<br/>Data available`;
             } else {
               html += `<br/><span style="opacity:0.6">Coming soon</span>`;
             }
@@ -118,7 +125,7 @@ export default function USMap({ stateStats = [] }: USMapProps) {
           .on("mouseleave", function (_: any, d: any) {
             d3.select(this as Element).attr(
               "fill",
-              d.properties.has_data ? ACTIVE_FILL : INACTIVE_FILL
+              hasData(d) ? ACTIVE_FILL : INACTIVE_FILL
             );
             tooltip!.style.opacity = "0";
           });

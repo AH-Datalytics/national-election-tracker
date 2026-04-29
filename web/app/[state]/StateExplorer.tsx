@@ -26,6 +26,16 @@ interface StateExplorerProps {
   elections: Election[];
 }
 
+/** Find the most recent election that is in the past (has data). */
+function findDefaultElection(elections: Election[]): string {
+  const today = new Date().toISOString().slice(0, 10);
+  // First try: most recent past election
+  const past = elections.find((e) => e.date <= today);
+  if (past) return past.election_key;
+  // Fallback: last in list (oldest)
+  return elections[elections.length - 1]?.election_key ?? "";
+}
+
 export default function StateExplorer({
   stateCode,
   stateName,
@@ -36,7 +46,7 @@ export default function StateExplorer({
 
   /* ---- State ---- */
   const [selectedElectionKey, setSelectedElectionKey] = useState<string>(
-    elections[0]?.election_key ?? "",
+    findDefaultElection(elections),
   );
   const [election, setElection] = useState<ElectionDetail | null>(null);
   const [selectedRaceKey, setSelectedRaceKey] = useState<string | null>(null);
@@ -44,6 +54,8 @@ export default function StateExplorer({
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [raceSearch, setRaceSearch] = useState("");
+  const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
+  const [selectedCountyName, setSelectedCountyName] = useState<string | null>(null);
 
   /* ---- Fetch election detail when selection changes ---- */
   useEffect(() => {
@@ -133,13 +145,19 @@ export default function StateExplorer({
     return races;
   }, [allRaces, activeCategory, raceSearch]);
 
-  /* ---- County click → detail link ---- */
+  /* ---- County click → drill down to precincts ---- */
   const handleCountyClick = useCallback(
-    (_code: string, _name: string) => {
-      // For now, just highlight
+    (countyCode: string, countyName: string) => {
+      setSelectedCounty(countyCode);
+      setSelectedCountyName(countyName);
     },
     [],
   );
+
+  const handleBackToState = useCallback(() => {
+    setSelectedCounty(null);
+    setSelectedCountyName(null);
+  }, []);
 
   /* ---- Selected race details ---- */
   const selectedRace = allRaces.find((r) => r.race_key === selectedRaceKey);
@@ -256,7 +274,10 @@ export default function StateExplorer({
             <ElectionMap
               state={stateCode}
               countyData={countyData}
+              selectedCounty={selectedCounty}
+              height={undefined}
               onCountyClick={handleCountyClick}
+              onBackToState={handleBackToState}
             />
           )}
 
@@ -281,9 +302,15 @@ export default function StateExplorer({
                   ? `${selectedRace.office_name} — ${selectedRace.district}`
                   : selectedRace.office_name}
               </div>
-              <div style={{ opacity: 0.7 }}>
-                Click a {countyLabel.toLowerCase()} for details
-              </div>
+              {selectedCountyName ? (
+                <div style={{ opacity: 0.7 }}>
+                  {selectedCountyName} {countyLabel}
+                </div>
+              ) : (
+                <div style={{ opacity: 0.7 }}>
+                  Click a {countyLabel.toLowerCase()} for details
+                </div>
+              )}
             </div>
           )}
         </div>

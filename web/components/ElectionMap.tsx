@@ -102,7 +102,7 @@ export default function ElectionMap({
   countyData,
   precinctData,
   selectedCounty,
-  height = 500,
+  height,
   onCountyClick,
   onBackToState,
 }: ElectionMapProps) {
