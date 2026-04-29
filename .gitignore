@@ -1,0 +1,29 @@
+# Database
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+data/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Shapefiles (large)
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+_shapefile_cache/
+
+# Node
+node_modules/
+.next/
+.vercel/
+
+# Environment
+.env
+.env.local
